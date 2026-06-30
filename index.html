@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>상하이 맛집 지도</title>
+<!-- jsDelivr CDN: 중국 본토에서도 접속 잘 되는 편 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<style>
+  :root { --panel-w: 300px; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  #app { display: flex; height: 100%; }
+
+  #sidebar {
+    width: var(--panel-w); min-width: var(--panel-w);
+    overflow-y: auto; background: #1e2430; color: #e8eaf0; padding: 14px;
+  }
+  #sidebar h1 { font-size: 17px; margin: 2px 0 4px; }
+  #sidebar .sub { font-size: 11.5px; color: #9aa3b5; margin-bottom: 12px; line-height: 1.5; }
+  .cat-title {
+    font-size: 12px; font-weight: bold; letter-spacing: .5px;
+    margin: 14px 0 6px; padding-bottom: 4px;
+    border-bottom: 1px solid #353d4d; display: flex; align-items: center; gap: 6px;
+  }
+  .cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .place { padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; line-height: 1.35; }
+  .place:hover { background: #2b3344; }
+  .place .cn { color: #9aa3b5; font-size: 11.5px; }
+  .place .meta { color: #c9b06a; font-size: 11px; }
+
+  #map { flex: 1; }
+  .pin {
+    width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45);
+  }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.55; }
+  .leaflet-popup-content .cn { font-size: 15px; font-weight: bold; }
+  .leaflet-popup-content .note { color: #555; margin-top: 3px; }
+  .leaflet-popup-content a { color: #2f6fed; font-weight: bold; text-decoration: none; }
+
+  /* 체인 퀵버튼 */
+  #chains { margin-top: 16px; }
+  .chain-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chain-btn {
+    flex: 1 1 calc(50% - 6px); display: block; text-align: center;
+    padding: 10px 6px; border-radius: 8px; border: 1px solid #353d4d;
+    background: #141923; color: #e8eaf0; text-decoration: none;
+    font-size: 12.5px; line-height: 1.3;
+  }
+  .chain-btn:hover { background: #2b3344; border-color: #12b5a5; }
+  .chain-btn .cn { display: block; color: #9aa3b5; font-size: 11px; margin-top: 2px; }
+  .chain-hint { font-size: 11px; color: #9aa3b5; margin-top: 6px; }
+
+  /* 바텀시트 손잡이 (모바일 전용) */
+  #sheetHandle { display: none; }
+  @media (max-width: 700px) {
+    #app { display: block; }
+    #map { position: fixed; inset: 0; height: 100%; }
+    #sidebar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000;
+      width: 100%; min-width: 0; max-height: 80vh;
+      border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+      padding-top: 4px; padding-bottom: calc(14px + env(safe-area-inset-bottom));
+      transform: translateY(calc(100% - 132px));
+      transition: transform .25s ease; overscroll-behavior: contain;
+    }
+    #sidebar.expanded { transform: translateY(0); }
+    #sheetHandle { display: block; padding: 8px 0 10px; cursor: pointer; }
+    #sheetHandle .grip { width: 44px; height: 5px; border-radius: 3px; background: #4a5468; margin: 0 auto; }
+    .place { padding: 12px 10px; font-size: 14.5px; }
+    .place .cn { font-size: 12.5px; }
+    #sidebar h1 { font-size: 16px; }
+    .chain-btn { padding: 13px 6px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="sheetHandle"><div class="grip"></div></div>
+    <h1>🍜 상하이 맛집 지도</h1>
+    <div class="sub">
+      핀 클릭 → 중국어 상호(택시기사에게 보여주기) · 팝업의 <b>고덕</b> → 고덕앱 길찾기<br>
+      🟥 훠궈·마라 · 🟧 밥집·딤섬·기타 · 하단 체인은 <b>퀵버튼</b>으로 바로 검색
+    </div>
+    <div id="placeList"></div>
+
+    <div id="chains">
+      <div class="cat-title"><span class="cat-dot" style="background:#12b5a5"></span>🔎 체인점 바로 검색 (고덕)</div>
+      <div class="chain-grid" id="chainGrid"></div>
+      <div class="chain-hint">지점이 많은 체인 — 버튼을 누르면 고덕(高德)앱에서 현재 위치 주변 지점이 바로 떠요.</div>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script>
+/* ============================================================
+ * 식당 목록 — 여기만 수정하면 됩니다.
+ * lat/lng 는 WGS-84(구글맵) 좌표. 고덕(AMap) 타일에서는 자동으로 GCJ-02 로 보정됩니다.
+ *   (고덕 공유링크에서 뽑은 GCJ-02 좌표를 → WGS-84 로 역변환해 넣었습니다)
+ * amap: 고덕 공유 단축링크(해당 지점으로 길찾기) · blog: 네이버 블로그 후기(선택)
+ * ============================================================ */
+const PLACES = [
+  // --- 훠궈·마라 ---
+  { cat: "hotpot", name: "주광위 훠궈 (朱光玉火锅馆)", cn: "朱光玉火锅馆(人民广场店) · 黄浦区福州路555-1号", lat: 31.234805, lng: 121.475615, price: "¥145/人", note: "인민광장 핫한 충칭훠궈", amap: "https://surl.amap.com/i25k2eS1049X" },
+  { cat: "hotpot", name: "얼훠궈 (二火锅)", cn: "二火锅(上海店) · 南京东路·铂金万澳酒店 정문 옆", lat: 31.23624, lng: 121.474178, price: "¥137/人", note: "현지인 많음 · 새벽 2시까지", amap: "https://surl.amap.com/F8042q14bbz" },
+  { cat: "hotpot", name: "가오라오지우 훠궈 (高老九火锅)", cn: "重庆高老九火锅(上海旗舰店) · 九江路399号华盛大厦2楼", lat: 31.237721, lng: 121.477986, price: "¥112/人", note: "충칭훠궈 · 개구리/돼지뇌 추가 가능", amap: "https://surl.amap.com/1MHIqARrEcDQ", blog: "https://blog.naver.com/gaonzzz/224315632046" },
+  { cat: "hotpot", name: "레드립스 串串香 (红唇串串香)", cn: "红唇串串香 REDLIPS(宏伊国际广场店) · 南京东路299号B1", lat: 31.238948, lng: 121.480073, price: "¥38/人", note: "★강추 마라 串串香 · 야식 OK", amap: "https://surl.amap.com/1fW8tEDnJ8wU", blog: "https://blog.naver.com/seosu13/224318134239" },
+
+  // --- 밥집·딤섬·기타 ---
+  { cat: "food", name: "동베이 만두 (东北四季饺子王)", cn: "东北四季饺子王(徐汇店) · 淮海中路1791号", lat: 31.207008, lng: 121.435395, price: "¥58/人", note: "동북요리 · 만두", amap: "https://surl.amap.com/1p0ChjlzNbm2" },
+  { cat: "food", name: "점도덕 딤섬 (点都德)", cn: "点都德(中海环宇荟店) · 新天地", lat: 31.21347, lng: 121.471815, price: "", note: "딤섬 맛집 · 신천지", amap: "https://surl.amap.com/tP1VHY10fo0" },
+  { cat: "food", name: "강변성외 카오위 (江边城外烤全鱼)", cn: "江边城外烤全鱼(长宁龙之梦店) · 长宁路1018号6楼", lat: 31.220995, lng: 121.412579, price: "¥104/人", note: "구운 생선(烤鱼)", amap: "https://surl.amap.com/tYdSZg1jgbg" },
+  { cat: "food", name: "예상하이 (夜上海)", cn: "夜上海(新天地) · 湖滨路168号无限极荟307", lat: 31.222591, lng: 121.473313, price: "¥193/人", note: "북경오리 · 미슐랭 · 신천지", amap: "https://surl.amap.com/1DOOgePfKc8x" },
+];
+
+const CATEGORIES = {
+  hotpot: { label: "훠궈·마라",        color: "#e5484d" },
+  food:   { label: "밥집·딤섬·기타",   color: "#e8950c" },
+};
+
+/* 체인점 — 지점이 많아 좌표 고정 대신 고덕 검색 퀵버튼 */
+const CHAINS = [
+  { name: "양꼬치",         cn: "很久以前羊肉串" },
+  { name: "릴리안 에그타르트", cn: "莉莲蛋挞" },
+  { name: "CHAGEE 밀크티",  cn: "霸王茶姬" },
+  { name: "코코 밀크티",     cn: "CoCo都可" },
+  { name: "하이디라오(돼지뇌)", cn: "海底捞" },
+];
+
+/* ============================================================
+ * WGS-84 → GCJ-02 변환 (중국 지도 오프셋 보정)
+ * ============================================================ */
+const GCJ = (() => {
+  const PI = Math.PI, A = 6378245.0, EE = 0.00669342162296594323;
+  const outOfChina = (lat, lng) => lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+  function tLat(x, y) {
+    let r = -100 + 2*x + 3*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+    r += (20*Math.sin(6*x*PI) + 20*Math.sin(2*x*PI)) * 2/3;
+    r += (20*Math.sin(y*PI) + 40*Math.sin(y/3*PI)) * 2/3;
+    r += (160*Math.sin(y/12*PI) + 320*Math.sin(y*PI/30)) * 2/3;
+    return r;
+  }
+  function tLng(x, y) {
+    let r = 300 + x + 2*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+    r += (20*Math.sin(6*x*PI) + 20*Math.sin(2*x*PI)) * 2/3;
+    r += (20*Math.sin(x*PI) + 40*Math.sin(x/3*PI)) * 2/3;
+    r += (150*Math.sin(x/12*PI) + 300*Math.sin(x/30*PI)) * 2/3;
+    return r;
+  }
+  function wgs2gcj(lat, lng) {
+    if (outOfChina(lat, lng)) return [lat, lng];
+    let dLat = tLat(lng - 105, lat - 35), dLng = tLng(lng - 105, lat - 35);
+    const radLat = lat / 180 * PI;
+    let magic = Math.sin(radLat); magic = 1 - EE * magic * magic;
+    const sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+    dLng = (dLng * 180) / (A / sqrtMagic * Math.cos(radLat) * PI);
+    return [lat + dLat, lng + dLng];
+  }
+  return { wgs2gcj };
+})();
+
+/* ============================================================
+ * 지도 구성 (Leaflet + 고덕 타일)
+ * ============================================================ */
+const amapRoad = L.tileLayer(
+  "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+  { subdomains: "1234", maxZoom: 18, attribution: "© AMap (高德地图)" }
+);
+const amapSat = L.layerGroup([
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", { subdomains: "1234", maxZoom: 18, attribution: "© AMap (高德地图)" }),
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}", { subdomains: "1234", maxZoom: 18 }),
+]);
+
+const map = L.map("map", { center: [31.2304, 121.4737], zoom: 13, layers: [amapRoad] });
+L.control.layers({ "고덕 일반": amapRoad, "고덕 위성": amapSat }, null, { position: "topright" }).addTo(map);
+L.control.scale({ imperial: false }).addTo(map);
+
+function pinIcon(color) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="pin" style="background:${color}"></div>`,
+    iconSize: [22, 22], iconAnchor: [4, 22], popupAnchor: [7, -20],
+  });
+}
+
+const markers = [];
+const listEl = document.getElementById("placeList");
+for (const [key, cat] of Object.entries(CATEGORIES)) {
+  const items = PLACES.filter(p => p.cat === key);
+  if (!items.length) continue;
+  const title = document.createElement("div");
+  title.className = "cat-title";
+  title.innerHTML = `<span class="cat-dot" style="background:${cat.color}"></span>${cat.label}`;
+  listEl.appendChild(title);
+
+  for (const p of items) {
+    p.gcj = GCJ.wgs2gcj(p.lat, p.lng);
+    const m = L.marker(p.gcj, { icon: pinIcon(cat.color) }).addTo(map);
+    const links = [
+      p.amap ? `<a href="${p.amap}" target="_blank" rel="noopener">고덕 길찾기 ›</a>` : "",
+      p.blog ? `<a href="${p.blog}" target="_blank" rel="noopener">블로그 ›</a>` : "",
+    ].filter(Boolean).join(" · ");
+    m.bindPopup(
+      `<div class="cn">${p.cn}</div>${p.name}` +
+      `<div class="note">${[p.price, p.note].filter(Boolean).join(" · ")}</div>` +
+      (links ? `<div class="note">${links}</div>` : "")
+    );
+    m.bindTooltip(p.name, { direction: "top", offset: [7, -20] });
+    m._place = p;
+    markers.push(m);
+
+    const row = document.createElement("div");
+    row.className = "place";
+    row.innerHTML = `${p.name}<div class="cn">${p.cn}</div>` +
+      (p.price ? `<div class="meta">${p.price}</div>` : "");
+    row.onclick = () => { collapseSheet(); map.flyTo(p.gcj, 16); m.openPopup(); };
+    listEl.appendChild(row);
+  }
+}
+if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.12));
+
+/* 체인 퀵버튼 → 고덕 검색 (uri.amap.com, 앱 우선 호출) */
+const chainGrid = document.getElementById("chainGrid");
+for (const c of CHAINS) {
+  const a = document.createElement("a");
+  a.className = "chain-btn";
+  a.target = "_blank"; a.rel = "noopener";
+  a.href = `https://uri.amap.com/search?keyword=${encodeURIComponent(c.cn)}&city=${encodeURIComponent("上海")}&coordinate=gaode&callnative=1`;
+  a.innerHTML = `${c.name}<span class="cn">${c.cn}</span>`;
+  chainGrid.appendChild(a);
+}
+
+/* 모바일 바텀시트 */
+const sidebarEl = document.getElementById("sidebar");
+const isMobile = () => window.matchMedia("(max-width: 700px)").matches;
+document.getElementById("sheetHandle").onclick = () => sidebarEl.classList.toggle("expanded");
+function collapseSheet() { if (isMobile()) sidebarEl.classList.remove("expanded"); }
+map.on("click", collapseSheet);
+</script>
+</body>
+</html>
