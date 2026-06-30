@@ -30,29 +30,52 @@
   .place:hover { background: #2b3344; }
   .place .cn { color: #9aa3b5; font-size: 11.5px; }
   .place .meta { color: #c9b06a; font-size: 11px; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; margin-left: 4px; vertical-align: middle; }
+  .badge.soyun { background: #3a2b46; color: #e6a9ff; }
+  .badge.famous { background: #2b3a46; color: #9ad0ff; }
 
   #map { flex: 1; }
-  .pin {
-    width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45);
+
+  /* 이모지 배지 핀 (마커 모양) */
+  .mk { position: relative; width: 32px; height: 32px; }
+  .mk .head {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2.5px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
   }
+  .mk .tail {
+    position: absolute; left: 50%; top: 29px; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 9px solid #000;
+  }
+  .mk.sr .head { width: 28px; height: 28px; font-size: 14px; border-style: dashed; }
+
   .leaflet-popup-content { font-size: 13px; line-height: 1.55; }
   .leaflet-popup-content .cn { font-size: 15px; font-weight: bold; }
   .leaflet-popup-content .note { color: #555; margin-top: 3px; }
   .leaflet-popup-content a { color: #2f6fed; font-weight: bold; text-decoration: none; }
 
-  /* 체인 퀵버튼 */
-  #chains { margin-top: 16px; }
+  /* 퀵버튼 */
+  .quick { margin-top: 14px; }
   .chain-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .chain-btn {
-    flex: 1 1 calc(50% - 6px); display: block; text-align: center;
-    padding: 10px 6px; border-radius: 8px; border: 1px solid #353d4d;
-    background: #141923; color: #e8eaf0; text-decoration: none;
-    font-size: 12.5px; line-height: 1.3;
+    flex: 1 1 calc(50% - 6px); text-align: center; padding: 10px 6px; border-radius: 8px;
+    border: 1px solid #353d4d; background: #141923; color: #e8eaf0; cursor: pointer;
+    font-size: 12.5px; line-height: 1.3; font-family: inherit;
   }
   .chain-btn:hover { background: #2b3344; border-color: #12b5a5; }
   .chain-btn .cn { display: block; color: #9aa3b5; font-size: 11px; margin-top: 2px; }
   .chain-hint { font-size: 11px; color: #9aa3b5; margin-top: 6px; }
+
+  /* 검색 결과 바 (지도 위 떠있음) */
+  #plotBar {
+    display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 1200; align-items: center; gap: 10px; max-width: 92vw;
+    background: #1e2430; color: #e8eaf0; border: 1px solid #353d4d; border-radius: 10px;
+    padding: 8px 12px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  }
+  #plotBar a { color: #5aa2ff; font-weight: bold; text-decoration: none; white-space: nowrap; }
+  #plotBar button { background: #2b3344; color: #cdd3e0; border: 1px solid #4a5468; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; font-family: inherit; }
 
   /* 바텀시트 손잡이 (모바일 전용) */
   #sheetHandle { display: none; }
@@ -83,70 +106,86 @@
     <div id="sheetHandle"><div class="grip"></div></div>
     <h1>🍜 상하이 맛집 지도</h1>
     <div class="sub">
-      핀 클릭 → 중국어 상호(택시기사에게 보여주기) · 팝업의 <b>고덕</b> → 고덕앱 길찾기<br>
-      🟥 훠궈·마라 · 🟧 밥집·딤섬·기타 · 하단 체인은 <b>퀵버튼</b>으로 바로 검색
+      핀 클릭 → 중국어 상호(택시기사에게 보여주기) + <b>고덕 길찾기</b><br>
+      <span class="badge soyun">소윤★</span> 소윤 추천 · <span class="badge famous">유명</span> 일반 유명맛집 · 퀵버튼 = <b>지도에 바로 검색</b>
     </div>
     <div id="placeList"></div>
 
-    <div id="menus">
-      <div class="cat-title"><span class="cat-dot" style="background:#e8950c"></span>🍢 메뉴로 검색 (고덕)</div>
+    <div class="quick" id="menus">
+      <div class="cat-title"><span class="cat-dot" style="background:#e8950c"></span>🍢 메뉴로 검색</div>
       <div class="chain-grid" id="menuGrid"></div>
-      <div class="chain-hint">★ = 조소윤 "꼭 먹고 와" · 버튼을 누르면 고덕(高德)앱에서 주변 그 메뉴 식당이 바로 떠요.</div>
     </div>
 
-    <div id="chains">
-      <div class="cat-title"><span class="cat-dot" style="background:#12b5a5"></span>🔎 체인점 바로 검색 (고덕)</div>
+    <div class="quick" id="famous">
+      <div class="cat-title"><span class="cat-dot" style="background:#2f7fed"></span>🏆 유명 맛집 검색</div>
+      <div class="chain-grid" id="famousGrid"></div>
+      <div class="chain-hint">지도DB에 좌표가 없어 검색형으로 넣었어요 — 안 잡히면 고덕 링크가 떠요.</div>
+    </div>
+
+    <div class="quick" id="chains">
+      <div class="cat-title"><span class="cat-dot" style="background:#12b5a5"></span>🔎 체인점 검색</div>
       <div class="chain-grid" id="chainGrid"></div>
-      <div class="chain-hint">지점이 많은 체인 — 버튼을 누르면 고덕(高德)앱에서 현재 위치 주변 지점이 바로 떠요.</div>
+      <div class="chain-hint">버튼 → 현재 지도 범위에서 검색해 🍴 마커로 표시. 결과 위 "고덕 ↗"로 앱 열기.</div>
     </div>
   </div>
   <div id="map"></div>
 </div>
+<div id="plotBar"></div>
 
+<!-- 선택: 텐센트 위치서비스 키 (config.js, git 미포함). 있으면 고품질 검색, 없으면 OSM 폴백 -->
+<script>window.TENCENT_KEY = "";</script>
+<script src="config.js"></script>
 <script>
 /* ============================================================
- * 식당 목록 — 여기만 수정하면 됩니다.
- * lat/lng 는 WGS-84(구글맵) 좌표. 고덕(AMap) 타일에서는 자동으로 GCJ-02 로 보정됩니다.
- *   (고덕 공유링크에서 뽑은 GCJ-02 좌표를 → WGS-84 로 역변환해 넣었습니다)
- * amap: 고덕 공유 단축링크(해당 지점으로 길찾기) · blog: 네이버 블로그 후기(선택)
+ * 고정 식당 마커 — 여기만 수정하면 됩니다.
+ * lat/lng 는 WGS-84(구글맵). 고덕 타일용 GCJ-02 로 자동 보정됩니다.
+ *   소윤 추천 8곳: 고덕 공유링크(GCJ-02) → WGS-84 역변환해 입력
+ *   유명 3곳: OpenStreetMap 좌표(WGS-84)
+ * by: "소윤" | "유명" · ic: 마커 이모지 · amap: 고덕 길찾기 링크 · blog: 후기(선택)
  * ============================================================ */
 const PLACES = [
   // --- 훠궈·마라 ---
-  { cat: "hotpot", name: "주광위 훠궈 (朱光玉火锅馆)", cn: "朱光玉火锅馆(人民广场店) · 黄浦区福州路555-1号", lat: 31.234805, lng: 121.475615, price: "¥145/人", note: "인민광장 핫한 충칭훠궈", amap: "https://surl.amap.com/i25k2eS1049X" },
-  { cat: "hotpot", name: "얼훠궈 (二火锅)", cn: "二火锅(上海店) · 南京东路·铂金万澳酒店 정문 옆", lat: 31.23624, lng: 121.474178, price: "¥137/人", note: "현지인 많음 · 새벽 2시까지", amap: "https://surl.amap.com/F8042q14bbz" },
-  { cat: "hotpot", name: "가오라오지우 훠궈 (高老九火锅)", cn: "重庆高老九火锅(上海旗舰店) · 九江路399号华盛大厦2楼", lat: 31.237721, lng: 121.477986, price: "¥112/人", note: "충칭훠궈 · 개구리/돼지뇌 추가 가능", amap: "https://surl.amap.com/1MHIqARrEcDQ", blog: "https://blog.naver.com/gaonzzz/224315632046" },
-  { cat: "hotpot", name: "레드립스 串串香 (红唇串串香)", cn: "红唇串串香 REDLIPS(宏伊国际广场店) · 南京东路299号B1", lat: 31.238948, lng: 121.480073, price: "¥38/人", note: "★강추 마라 串串香 · 야식 OK", amap: "https://surl.amap.com/1fW8tEDnJ8wU", blog: "https://blog.naver.com/seosu13/224318134239" },
+  { cat:"hotpot", ic:"🔥", by:"소윤", name:"주광위 훠궈 (朱光玉火锅馆)", cn:"朱光玉火锅馆(人民广场店) · 黄浦区福州路555-1号", lat:31.234805, lng:121.475615, price:"¥145/人", note:"인민광장 핫한 충칭훠궈", amap:"https://surl.amap.com/i25k2eS1049X" },
+  { cat:"hotpot", ic:"🔥", by:"소윤", name:"얼훠궈 (二火锅)", cn:"二火锅(上海店) · 南京东路·铂金万澳酒店 정문 옆", lat:31.23624, lng:121.474178, price:"¥137/人", note:"현지인 많음 · 새벽 2시까지", amap:"https://surl.amap.com/F8042q14bbz" },
+  { cat:"hotpot", ic:"🔥", by:"소윤", name:"가오라오지우 훠궈 (高老九火锅)", cn:"重庆高老九火锅(上海旗舰店) · 九江路399号华盛大厦2楼", lat:31.237721, lng:121.477986, price:"¥112/人", note:"충칭훠궈 · 개구리/돼지뇌 추가 가능", amap:"https://surl.amap.com/1MHIqARrEcDQ", blog:"https://blog.naver.com/gaonzzz/224315632046" },
+  { cat:"hotpot", ic:"🌶️", by:"소윤", name:"레드립스 串串香 (红唇串串香)", cn:"红唇串串香 REDLIPS(宏伊国际广场店) · 南京东路299号B1", lat:31.238948, lng:121.480073, price:"¥38/人", note:"★강추 마라 串串香 · 야식 OK", amap:"https://surl.amap.com/1fW8tEDnJ8wU", blog:"https://blog.naver.com/seosu13/224318134239" },
 
-  // --- 밥집·딤섬·기타 ---
-  { cat: "food", name: "동베이 만두 (东北四季饺子王)", cn: "东北四季饺子王(徐汇店) · 淮海中路1791号", lat: 31.207008, lng: 121.435395, price: "¥58/人", note: "동북요리 · 만두", amap: "https://surl.amap.com/1p0ChjlzNbm2" },
-  { cat: "food", name: "점도덕 딤섬 (点都德)", cn: "点都德(中海环宇荟店) · 新天地", lat: 31.21347, lng: 121.471815, price: "", note: "딤섬 맛집 · 신천지", amap: "https://surl.amap.com/tP1VHY10fo0" },
-  { cat: "food", name: "강변성외 카오위 (江边城外烤全鱼)", cn: "江边城外烤全鱼(长宁龙之梦店) · 长宁路1018号6楼", lat: 31.220995, lng: 121.412579, price: "¥104/人", note: "구운 생선(烤鱼)", amap: "https://surl.amap.com/tYdSZg1jgbg" },
-  { cat: "food", name: "예상하이 (夜上海)", cn: "夜上海(新天地) · 湖滨路168号无限极荟307", lat: 31.222591, lng: 121.473313, price: "¥193/人", note: "북경오리 · 미슐랭 · 신천지", amap: "https://surl.amap.com/1DOOgePfKc8x" },
+  // --- 면·국수 ---
+  { cat:"noodle", ic:"🍜", by:"유명", name:"후시 라오룽탕 면관 (沪西老弄堂面馆)", cn:"沪西老弄堂面馆 · 静安区北京西路1738号", lat:31.226968, lng:121.438461, price:"", note:"파기름 국수(葱油拌面)로 유명한 로컬 면집", amap:"https://uri.amap.com/search?keyword=%E6%B2%AA%E8%A5%BF%E8%80%81%E5%BC%84%E5%A0%82%E9%9D%A2%E9%A6%86&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 만두·딤섬·생전 ---
+  { cat:"dumpling", ic:"🥟", by:"소윤", name:"동베이 만두 (东北四季饺子王)", cn:"东北四季饺子王(徐汇店) · 淮海中路1791号", lat:31.207008, lng:121.435395, price:"¥58/人", note:"동북요리 · 만두", amap:"https://surl.amap.com/1p0ChjlzNbm2" },
+  { cat:"dumpling", ic:"🥟", by:"소윤", name:"점도덕 딤섬 (点都德)", cn:"点都德(中海环宇荟店) · 新天地", lat:31.21347, lng:121.471815, price:"", note:"딤섬 맛집 · 신천지", amap:"https://surl.amap.com/tP1VHY10fo0" },
+  { cat:"dumpling", ic:"🥟", by:"유명", name:"따후춘 생전 (大壶春)", cn:"大壶春(云南南路店) · 黄浦区云南南路71号", lat:31.229395, lng:121.476489, price:"", note:"상하이식 생전(生煎) · 빕구르망 계열", amap:"https://uri.amap.com/search?keyword=%E5%A4%A7%E5%A3%B6%E6%98%A5&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { cat:"dumpling", ic:"🥟", by:"유명", name:"라이라이 샤오롱 (来来小笼)", cn:"来来小笼(莱莱小笼·福建中路店) · 黄浦区福建中路", lat:31.236257, lng:121.476989, price:"", note:"샤오롱바오로 많이 찾는 곳", amap:"https://uri.amap.com/search?keyword=%E6%9D%A5%E6%9D%A5%E5%B0%8F%E7%AC%BC&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 대표요리 ---
+  { cat:"signature", ic:"🐟", by:"소윤", name:"강변성외 카오위 (江边城外烤全鱼)", cn:"江边城外烤全鱼(长宁龙之梦店) · 长宁路1018号6楼", lat:31.220995, lng:121.412579, price:"¥104/人", note:"구운 생선(烤鱼)", amap:"https://surl.amap.com/tYdSZg1jgbg" },
+  { cat:"signature", ic:"🦆", by:"소윤", name:"예상하이 (夜上海)", cn:"夜上海(新天地) · 湖滨路168号无限极荟307", lat:31.222591, lng:121.473313, price:"¥193/人", note:"북경오리 · 미슐랭 · 신천지", amap:"https://surl.amap.com/1DOOgePfKc8x" },
 ];
 
 const CATEGORIES = {
-  hotpot: { label: "훠궈·마라",        color: "#e5484d" },
-  food:   { label: "밥집·딤섬·기타",   color: "#e8950c" },
+  hotpot:    { label:"훠궈·마라",        color:"#e5484d" },
+  noodle:    { label:"면·국수",          color:"#e8950c" },
+  dumpling:  { label:"만두·딤섬·생전",   color:"#d6a51a" },
+  signature: { label:"대표요리",         color:"#9a5cf0" },
 };
 
-/* 메뉴로 검색 — 조소윤 추천 메뉴 카테고리 (지점 무관, 주변에서 그 메뉴 검색) */
+/* 퀵버튼: 누르면 현재 지도 범위에서 검색해 🍴 마커로 표시 (n=한글, k=중국어 검색어) */
 const MENUS = [
-  { name: "★ 훠궈",        cn: "火锅" },
-  { name: "★ 카오위",      cn: "烤鱼" },
-  { name: "양꼬치",        cn: "羊肉串" },
-  { name: "북경오리",      cn: "北京烤鸭" },
-  { name: "딤섬",          cn: "点心" },
-  { name: "동베이 음식",   cn: "东北菜" },
-  { name: "밥집(밥종류)",  cn: "家常菜" },
+  {n:"★ 훠궈", k:"火锅"}, {n:"★ 카오위", k:"烤鱼"}, {n:"마라롱샤", k:"小龙虾"},
+  {n:"게살국수", k:"蟹粉面"}, {n:"파기름국수", k:"葱油拌面"}, {n:"샤오롱바오", k:"小笼包"},
+  {n:"생전(生煎)", k:"生煎"}, {n:"북경오리", k:"北京烤鸭"}, {n:"딤섬", k:"点心"},
+  {n:"양꼬치", k:"羊肉串"}, {n:"동베이", k:"东北菜"}, {n:"밥집", k:"家常菜"},
 ];
-
-/* 체인점 — 지점이 많아 좌표 고정 대신 고덕 검색 퀵버튼 */
+const FAMOUS_SEARCH = [
+  {n:"아랑면관", k:"阿郎面馆"}, {n:"푸마오 마라롱샤", k:"复茂小龙虾"},
+  {n:"위싱지(게살국수)", k:"蟹黄面 外滩"}, {n:"슈다샤 훠궈", k:"蜀大侠火锅"},
+  {n:"홍쿠이지아(마라롱샤)", k:"洪奎家 小龙虾"},
+];
 const CHAINS = [
-  { name: "양꼬치",         cn: "很久以前羊肉串" },
-  { name: "릴리안 에그타르트", cn: "莉莲蛋挞" },
-  { name: "CHAGEE 밀크티",  cn: "霸王茶姬" },
-  { name: "코코 밀크티",     cn: "CoCo都可" },
-  { name: "하이디라오(돼지뇌)", cn: "海底捞" },
+  {n:"양꼬치", k:"很久以前羊肉串"}, {n:"릴리안 에그타르트", k:"莉莲蛋挞"},
+  {n:"CHAGEE 밀크티", k:"霸王茶姬"}, {n:"코코 밀크티", k:"CoCo都可"}, {n:"하이디라오", k:"海底捞"},
 ];
 
 /* ============================================================
@@ -183,29 +222,32 @@ const GCJ = (() => {
 })();
 
 /* ============================================================
- * 지도 구성 (Leaflet + 고덕 타일)
+ * 지도 (Leaflet + 고덕 타일, 둘 다 GCJ-02)
  * ============================================================ */
 const amapRoad = L.tileLayer(
   "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
-  { subdomains: "1234", maxZoom: 18, attribution: "© AMap (高德地图)" }
-);
+  { subdomains: "1234", maxZoom: 18, attribution: "© AMap (高德地图)" });
 const amapSat = L.layerGroup([
-  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", { subdomains: "1234", maxZoom: 18, attribution: "© AMap (高德地图)" }),
-  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}", { subdomains: "1234", maxZoom: 18 }),
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", { subdomains:"1234", maxZoom:18, attribution:"© AMap (高德地图)" }),
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}", { subdomains:"1234", maxZoom:18 }),
 ]);
-
 const map = L.map("map", { center: [31.2304, 121.4737], zoom: 13, layers: [amapRoad] });
-L.control.layers({ "고덕 일반": amapRoad, "고덕 위성": amapSat }, null, { position: "topright" }).addTo(map);
-L.control.scale({ imperial: false }).addTo(map);
+L.control.layers({ "고덕 일반": amapRoad, "고덕 위성": amapSat }, null, { position:"topright" }).addTo(map);
+L.control.scale({ imperial:false }).addTo(map);
 
-function pinIcon(color) {
+/* 이모지 배지 핀 */
+function emojiPin(color, ic, small) {
+  const s = small ? " sr" : "";
   return L.divIcon({
     className: "",
-    html: `<div class="pin" style="background:${color}"></div>`,
-    iconSize: [22, 22], iconAnchor: [4, 22], popupAnchor: [7, -20],
+    html: `<div class="mk${s}"><div class="head" style="background:${color}">${ic}</div><div class="tail" style="border-top-color:${color}"></div></div>`,
+    iconSize: small ? [28,36] : [32,41],
+    iconAnchor: small ? [14,36] : [16,41],
+    popupAnchor: [0, small ? -33 : -38],
   });
 }
 
+/* 고정 마커 + 사이드바 목록 */
 const markers = [];
 const listEl = document.getElementById("placeList");
 for (const [key, cat] of Object.entries(CATEGORIES)) {
@@ -218,23 +260,24 @@ for (const [key, cat] of Object.entries(CATEGORIES)) {
 
   for (const p of items) {
     p.gcj = GCJ.wgs2gcj(p.lat, p.lng);
-    const m = L.marker(p.gcj, { icon: pinIcon(cat.color) }).addTo(map);
+    const m = L.marker(p.gcj, { icon: emojiPin(cat.color, p.ic) }).addTo(map);
     const links = [
       p.amap ? `<a href="${p.amap}" target="_blank" rel="noopener">고덕 길찾기 ›</a>` : "",
       p.blog ? `<a href="${p.blog}" target="_blank" rel="noopener">블로그 ›</a>` : "",
     ].filter(Boolean).join(" · ");
+    const badge = p.by === "소윤" ? `<span class="badge soyun">소윤★</span>` : `<span class="badge famous">유명</span>`;
     m.bindPopup(
-      `<div class="cn">${p.cn}</div>${p.name}` +
+      `<div class="cn">${p.cn}</div>${p.name} ${badge}` +
       `<div class="note">${[p.price, p.note].filter(Boolean).join(" · ")}</div>` +
       (links ? `<div class="note">${links}</div>` : "")
     );
-    m.bindTooltip(p.name, { direction: "top", offset: [7, -20] });
-    m._place = p;
+    m.bindTooltip(p.name, { direction:"top", offset:[0,-34] });
+    m._gcj = p.gcj;
     markers.push(m);
 
     const row = document.createElement("div");
     row.className = "place";
-    row.innerHTML = `${p.name}<div class="cn">${p.cn}</div>` +
+    row.innerHTML = `${p.ic} ${p.name} ${badge}<div class="cn">${p.cn}</div>` +
       (p.price ? `<div class="meta">${p.price}</div>` : "");
     row.onclick = () => { collapseSheet(); map.flyTo(p.gcj, 16); m.openPopup(); };
     listEl.appendChild(row);
@@ -242,20 +285,97 @@ for (const [key, cat] of Object.entries(CATEGORIES)) {
 }
 if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.12));
 
-/* 퀵버튼 → 고덕 검색 (uri.amap.com, 앱 우선 호출) */
-function renderQuickButtons(gridId, items) {
+/* ============================================================
+ * 퀵버튼 → 현재 지도 범위에서 검색 → 🍴 마커 플롯 (OSM Nominatim, 키 불필요)
+ * 결과 없으면 고덕 검색 링크 노출. 고덕은 항상 한 탭 거리.
+ * ============================================================ */
+const searchLayer = L.layerGroup().addTo(map);
+const plotBar = document.getElementById("plotBar");
+function clearPlot() { searchLayer.clearLayers(); plotBar.style.display = "none"; }
+
+// 텐센트 JSONP (키 있을 때만 사용)
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = "__cb" + Math.random().toString(36).slice(2);
+    const s = document.createElement("script");
+    const t = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, 8000);
+    function cleanup() { clearTimeout(t); delete window[cb]; s.remove(); }
+    window[cb] = d => { cleanup(); resolve(d); };
+    s.onerror = () => { cleanup(); reject(new Error("network")); };
+    s.src = url + "&output=jsonp&callback=" + cb;
+    document.body.appendChild(s);
+  });
+}
+
+const FOOD_TYPES = ["restaurant", "fast_food", "cafe", "bar", "food_court", "pub"];
+
+function plotResults(label, list, amapUrl) {
+  if (!list.length) {
+    plotBar.innerHTML = `<span>'${label}' 결과 없음 →</span> <a href="${amapUrl}" target="_blank" rel="noopener">고덕에서 검색 ↗</a> <button id="plotClear">닫기</button>`;
+    document.getElementById("plotClear").onclick = clearPlot; return;
+  }
+  const pts = [];
+  for (const r of list) {
+    pts.push(r.gcj);
+    const nav = `https://uri.amap.com/marker?position=${r.gcj[1]},${r.gcj[0]}&name=${encodeURIComponent(r.title)}&coordinate=gaode&callnative=1`;
+    searchLayer.addLayer(
+      L.marker(r.gcj, { icon: emojiPin("#12b5a5", "🍴", true) })
+       .bindPopup(`<div class="cn">${r.title}</div>${r.addr ? `<div class="note">${r.addr}</div>` : ""}<div class="note"><a href="${nav}" target="_blank" rel="noopener">고덕 길찾기 ›</a></div>`)
+    );
+  }
+  map.fitBounds(L.latLngBounds(pts).pad(0.25));
+  plotBar.innerHTML = `<span>'${label}' ${list.length}곳</span> <a href="${amapUrl}" target="_blank" rel="noopener">고덕 ↗</a> <button id="plotClear">지우기</button>`;
+  document.getElementById("plotClear").onclick = clearPlot;
+}
+
+async function quickSearch(label, keyword) {
+  clearPlot();
+  plotBar.style.display = "flex";
+  plotBar.innerHTML = `<span>'${label}' 검색 중…</span>`;
+  const amapUrl = `https://uri.amap.com/search?keyword=${encodeURIComponent(keyword)}&city=${encodeURIComponent("上海")}&coordinate=gaode&callnative=1`;
+  const c = map.getCenter();
+
+  // 1) 텐센트 (키 있으면 — 고품질, 좌표 GCJ-02 그대로)
+  if (window.TENCENT_KEY) {
+    try {
+      const d = await jsonp(`https://apis.map.qq.com/ws/place/v1/search?keyword=${encodeURIComponent(keyword)}` +
+        `&boundary=${encodeURIComponent(`nearby(${c.lat},${c.lng},6000,1)`)}&page_size=15&key=${window.TENCENT_KEY}`);
+      if (d.status === 0 && d.data && d.data.length) {
+        plotResults(label, d.data.map(p => ({ title: p.title, addr: p.address || "", gcj: [p.location.lat, p.location.lng] })), amapUrl);
+        collapseSheet(); return;
+      }
+    } catch (e) { /* OSM 폴백 */ }
+  }
+
+  // 2) OSM Nominatim 폴백 (키 불필요, WGS-84 → GCJ 보정 · 음식점/이름일치만)
+  let results = [];
+  try {
+    const b = map.getBounds().pad(0.05);
+    const vb = `${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`;
+    const res = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&accept-language=zh,ko,en" +
+      `&bounded=1&viewbox=${vb}&q=${encodeURIComponent(keyword)}`);
+    const arr = await res.json();
+    results = (Array.isArray(arr) ? arr : [])
+      .filter(r => FOOD_TYPES.includes(r.type) || (r.name || "").includes(keyword) || (r.display_name || "").split(",")[0].includes(keyword))
+      .map(r => ({ title: (r.display_name || "").split(",")[0], addr: (r.display_name || "").split(",").slice(1, 4).join(", "), gcj: GCJ.wgs2gcj(+r.lat, +r.lon) }));
+  } catch (e) { /* 고덕 링크로 */ }
+  plotResults(label, results, amapUrl);
+  collapseSheet();
+}
+
+function renderQuick(gridId, items) {
   const grid = document.getElementById(gridId);
-  for (const c of items) {
-    const a = document.createElement("a");
-    a.className = "chain-btn";
-    a.target = "_blank"; a.rel = "noopener";
-    a.href = `https://uri.amap.com/search?keyword=${encodeURIComponent(c.cn)}&city=${encodeURIComponent("上海")}&coordinate=gaode&callnative=1`;
-    a.innerHTML = `${c.name}<span class="cn">${c.cn}</span>`;
-    grid.appendChild(a);
+  for (const it of items) {
+    const btn = document.createElement("button");
+    btn.className = "chain-btn";
+    btn.innerHTML = `${it.n}<span class="cn">${it.k}</span>`;
+    btn.onclick = () => quickSearch(it.n, it.k);
+    grid.appendChild(btn);
   }
 }
-renderQuickButtons("menuGrid", MENUS);
-renderQuickButtons("chainGrid", CHAINS);
+renderQuick("menuGrid", MENUS);
+renderQuick("famousGrid", FAMOUS_SEARCH);
+renderQuick("chainGrid", CHAINS);
 
 /* 모바일 바텀시트 */
 const sidebarEl = document.getElementById("sidebar");
