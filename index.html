@@ -88,6 +88,12 @@
     </div>
     <div id="placeList"></div>
 
+    <div id="menus">
+      <div class="cat-title"><span class="cat-dot" style="background:#e8950c"></span>🍢 메뉴로 검색 (고덕)</div>
+      <div class="chain-grid" id="menuGrid"></div>
+      <div class="chain-hint">★ = 조소윤 "꼭 먹고 와" · 버튼을 누르면 고덕(高德)앱에서 주변 그 메뉴 식당이 바로 떠요.</div>
+    </div>
+
     <div id="chains">
       <div class="cat-title"><span class="cat-dot" style="background:#12b5a5"></span>🔎 체인점 바로 검색 (고덕)</div>
       <div class="chain-grid" id="chainGrid"></div>
@@ -122,6 +128,17 @@ const CATEGORIES = {
   hotpot: { label: "훠궈·마라",        color: "#e5484d" },
   food:   { label: "밥집·딤섬·기타",   color: "#e8950c" },
 };
+
+/* 메뉴로 검색 — 조소윤 추천 메뉴 카테고리 (지점 무관, 주변에서 그 메뉴 검색) */
+const MENUS = [
+  { name: "★ 훠궈",        cn: "火锅" },
+  { name: "★ 카오위",      cn: "烤鱼" },
+  { name: "양꼬치",        cn: "羊肉串" },
+  { name: "북경오리",      cn: "北京烤鸭" },
+  { name: "딤섬",          cn: "点心" },
+  { name: "동베이 음식",   cn: "东北菜" },
+  { name: "밥집(밥종류)",  cn: "家常菜" },
+];
 
 /* 체인점 — 지점이 많아 좌표 고정 대신 고덕 검색 퀵버튼 */
 const CHAINS = [
@@ -225,16 +242,20 @@ for (const [key, cat] of Object.entries(CATEGORIES)) {
 }
 if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.12));
 
-/* 체인 퀵버튼 → 고덕 검색 (uri.amap.com, 앱 우선 호출) */
-const chainGrid = document.getElementById("chainGrid");
-for (const c of CHAINS) {
-  const a = document.createElement("a");
-  a.className = "chain-btn";
-  a.target = "_blank"; a.rel = "noopener";
-  a.href = `https://uri.amap.com/search?keyword=${encodeURIComponent(c.cn)}&city=${encodeURIComponent("上海")}&coordinate=gaode&callnative=1`;
-  a.innerHTML = `${c.name}<span class="cn">${c.cn}</span>`;
-  chainGrid.appendChild(a);
+/* 퀵버튼 → 고덕 검색 (uri.amap.com, 앱 우선 호출) */
+function renderQuickButtons(gridId, items) {
+  const grid = document.getElementById(gridId);
+  for (const c of items) {
+    const a = document.createElement("a");
+    a.className = "chain-btn";
+    a.target = "_blank"; a.rel = "noopener";
+    a.href = `https://uri.amap.com/search?keyword=${encodeURIComponent(c.cn)}&city=${encodeURIComponent("上海")}&coordinate=gaode&callnative=1`;
+    a.innerHTML = `${c.name}<span class="cn">${c.cn}</span>`;
+    grid.appendChild(a);
+  }
 }
+renderQuickButtons("menuGrid", MENUS);
+renderQuickButtons("chainGrid", CHAINS);
 
 /* 모바일 바텀시트 */
 const sidebarEl = document.getElementById("sidebar");
