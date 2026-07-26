@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>8/1 (토) 상하이 아메카지·빈티지 데이</title>
+<!-- jsDelivr CDN: 중국 본토에서도 접속 잘 되는 편 (맛집 지도와 동일) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<style>
+  :root { --panel-w: 344px; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  #app { display: flex; height: 100%; }
+
+  /* ===== 사이드바 ===== */
+  #sidebar {
+    width: var(--panel-w); min-width: var(--panel-w);
+    display: flex; flex-direction: column;
+    background: #1e2430; color: #e8eaf0;
+  }
+  #sheetHandle { display: none; }
+  .side-head { padding: 14px 14px 10px; border-bottom: 1px solid #2b3344; }
+  .side-head h1 { font-size: 16.5px; margin: 0 0 3px; display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+  .side-head h1 .d { color: #c9b06a; font-size: 12.5px; font-weight: 600; }
+  .side-head .sub { font-size: 11.5px; color: #9aa3b5; line-height: 1.5; }
+  .side-head .src { margin-top: 6px; font-size: 11px; }
+  .side-head .src a { color: #5aa2ff; text-decoration: none; }
+
+  /* 탭 */
+  .tabs { display: flex; gap: 6px; padding: 10px 14px 0; }
+  .tab {
+    flex: 1; text-align: center; padding: 8px 6px; border-radius: 8px 8px 0 0;
+    background: #141923; color: #9aa3b5; cursor: pointer; font-size: 13px; font-weight: 600;
+    border: 1px solid #2b3344; border-bottom: none;
+  }
+  .tab.active { background: #262f3f; color: #fff; }
+  .tab .c { font-size: 11px; color: #c9b06a; margin-left: 3px; }
+
+  .pane { flex: 1; overflow-y: auto; padding: 12px 14px; }
+  .pane.hidden { display: none; }
+
+  /* ===== 일정 타임라인 ===== */
+  .day-summary { font-size: 12px; color: #9aa3b5; margin: 0 0 10px; }
+  .day-summary b { color: #e8eaf0; }
+  #timeline { position: relative; border-left: 1px solid #2b3344; }
+  .tl-item {
+    position: relative; margin: 0 0 8px 14px; padding: 9px 10px 9px 12px;
+    background: #262f3f; border-radius: 8px; border-left: 4px solid #6b7280;
+    cursor: pointer; transition: background .12s;
+  }
+  .tl-item:hover { background: #2f3a4d; }
+  .tl-item.is-move { background: transparent; border-left-style: dashed; padding: 5px 10px 5px 12px; }
+  .tl-item.is-move .tl-title { font-weight: 500; color: #9aa3b5; font-size: 12.5px; }
+  .tl-item::before {
+    content: ""; position: absolute; left: -20px; top: 14px;
+    width: 9px; height: 9px; border-radius: 50%; background: #6b7280; border: 2px solid #1e2430;
+  }
+  .tl-item.is-move::before { width: 7px; height: 7px; top: 11px; left: -19px; background: #4a5468; }
+  .tl-time { font-size: 11px; color: #c9b06a; font-weight: 600; letter-spacing: .3px; }
+  .tl-item.is-move .tl-time { color: #7c869a; }
+  .tl-title { font-size: 14px; font-weight: 600; margin: 1px 0; display: flex; align-items: center; gap: 5px; }
+  .tl-place { font-size: 11.5px; color: #9ad0ff; margin-top: 2px; }
+  .tl-place .cn { color: #9aa3b5; }
+  .tl-meta { font-size: 11px; color: #9aa3b5; margin-top: 2px; }
+  .tl-idx {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 17px; height: 17px; border-radius: 50%; background: #c9b06a; color: #1e2430;
+    font-size: 10px; font-weight: 800; flex: none;
+  }
+  .tl-links { margin-top: 4px; font-size: 11px; }
+  .tl-links a { color: #5aa2ff; text-decoration: none; margin-right: 8px; }
+  .tl-empty { color: #6b7280; font-size: 12px; text-align: center; padding: 20px 0; }
+
+  .add-row {
+    margin: 4px 0 12px 14px; padding: 9px; border: 1px dashed #3a4459; border-radius: 8px;
+    color: #9aa3b5; font-size: 12px; text-align: center; cursor: pointer;
+  }
+  .add-row:hover { border-color: #c9b06a; color: #c9b06a; }
+
+  /* ===== 장소 담기 ===== */
+  .poi-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .poi-tab {
+    flex: 1; text-align: center; padding: 6px; border-radius: 7px; cursor: pointer;
+    background: #141923; border: 1px solid #2b3344; color: #9aa3b5; font-size: 12px; font-weight: 600;
+  }
+  .poi-tab.active { background: #262f3f; color: #fff; border-color: #12b5a5; }
+  .cat-title {
+    font-size: 12px; font-weight: bold; letter-spacing: .3px;
+    margin: 12px 0 6px; padding-bottom: 4px;
+    border-bottom: 1px solid #353d4d; display: flex; align-items: center; gap: 6px;
+  }
+  .cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+  .poi {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px; border-radius: 7px; font-size: 13px; line-height: 1.35; cursor: pointer;
+  }
+  .poi:hover { background: #2b3344; }
+  .poi .body { flex: 1; min-width: 0; }
+  .poi .cn { color: #9aa3b5; font-size: 11px; }
+  .poi .meta { color: #c9b06a; font-size: 11px; }
+  .poi .add {
+    flex: none; align-self: center; width: 26px; height: 26px; border-radius: 50%;
+    background: #141923; border: 1px solid #3a4459; color: #12b5a5;
+    font-size: 16px; line-height: 1; cursor: pointer; font-family: inherit;
+  }
+  .poi .add:hover { background: #12b5a5; color: #fff; border-color: #12b5a5; }
+  .poi.in-plan .add { background: #12b5a5; color: #fff; border-color: #12b5a5; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; margin-left: 3px; vertical-align: middle; white-space: nowrap; }
+  .badge.b-must { background: #4a2230; color: #ff9bb0; }
+  .badge.b-vtg  { background: #3a3320; color: #e6c46a; }
+  .badge.b-sel  { background: #22303f; color: #8fc4ff; }
+  .badge.b-spot { background: #1e3a36; color: #7fd7c4; }
+  .badge.b-snk  { background: #3a2e1e; color: #f0b46a; }
+  .badge.b-etc  { background: #2b3140; color: #aab2c2; }
+
+  /* ===== 하단 액션 ===== */
+  .side-foot { padding: 10px 14px; border-top: 1px solid #2b3344; display: flex; gap: 8px; }
+  .side-foot button {
+    flex: 1; padding: 9px 6px; border-radius: 8px; border: 1px solid #353d4d;
+    background: #141923; color: #e8eaf0; cursor: pointer; font-size: 12.5px; font-family: inherit;
+  }
+  .side-foot button:hover { background: #2b3344; }
+  .side-foot button.danger:hover { border-color: #e5484d; color: #ff9b9b; }
+
+  /* ===== 지도 ===== */
+  #map { flex: 1; }
+  .mk { position: relative; width: 32px; height: 32px; }
+  .mk .head {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2.5px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+  }
+  .mk .tail {
+    position: absolute; left: 50%; top: 29px; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 9px solid #000;
+  }
+  .mk.planned .head { border-color: #c9b06a; box-shadow: 0 0 0 3px rgba(201,176,106,.4), 0 2px 6px rgba(0,0,0,.5); }
+  .mk.dim { opacity: .78; }
+  .mk .num {
+    position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 3px;
+    border-radius: 9px; background: #c9b06a; color: #1e2430; font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; border: 1.5px solid #1e2430;
+  }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.55; }
+  .leaflet-popup-content .cn { font-size: 14px; font-weight: bold; }
+  .leaflet-popup-content .addr { color: #666; font-size: 11.5px; margin-top: 1px; }
+  .leaflet-popup-content .note { color: #555; margin-top: 3px; }
+  .leaflet-popup-content a { color: #2f6fed; font-weight: bold; text-decoration: none; }
+  .leaflet-popup-content .pbtn {
+    display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 6px;
+    background: #12b5a5; color: #fff !important; font-size: 12px; cursor: pointer;
+  }
+
+  /* ===== 편집 모달 ===== */
+  #modalWrap {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+  }
+  #modalWrap.show { display: flex; }
+  #modal {
+    width: 92vw; max-width: 380px; background: #1e2430; color: #e8eaf0;
+    border-radius: 14px; padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    max-height: 90vh; overflow-y: auto;
+  }
+  #modal h3 { margin: 0 0 12px; font-size: 15px; }
+  .fld { margin-bottom: 10px; }
+  .fld label { display: block; font-size: 11.5px; color: #9aa3b5; margin-bottom: 4px; }
+  .fld input, .fld select, .fld textarea {
+    width: 100%; padding: 8px 9px; border-radius: 7px; border: 1px solid #353d4d;
+    background: #141923; color: #e8eaf0; font-size: 13px; font-family: inherit;
+  }
+  .fld textarea { resize: vertical; min-height: 40px; }
+  .fld-row { display: flex; gap: 8px; }
+  .fld-row .fld { flex: 1; }
+  .modal-foot { display: flex; gap: 8px; margin-top: 6px; }
+  .modal-foot button {
+    padding: 9px 12px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-family: inherit; font-weight: 600;
+  }
+  .btn-save { flex: 1; background: #12b5a5; color: #fff; }
+  .btn-cancel { background: #2b3344; color: #cdd3e0; }
+  .btn-del { background: #3a2430; color: #ff9b9b; }
+
+  /* ===== 모바일 바텀시트 ===== */
+  @media (max-width: 760px) {
+    #app { display: block; }
+    #map { position: fixed; inset: 0; height: 100%; }
+    #sidebar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000;
+      width: 100%; min-width: 0; max-height: 82vh;
+      border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+      transform: translateY(calc(100% - 150px));
+      transition: transform .25s ease; overscroll-behavior: contain;
+    }
+    #sidebar.expanded { transform: translateY(0); }
+    #sheetHandle { display: block; padding: 8px 0 4px; cursor: pointer; }
+    #sheetHandle .grip { width: 44px; height: 5px; border-radius: 3px; background: #4a5468; margin: 0 auto; }
+    .pane { max-height: 52vh; }
+  }
+
+  /* ===== 인쇄 ===== */
+  @media print {
+    #map, .tabs, .side-foot, .add-row, #sheetHandle, .poi .add { display: none !important; }
+    #app { display: block; }
+    #sidebar { width: 100%; background: #fff; color: #000; }
+    .tl-item { background: #f4f4f6; color: #000; break-inside: avoid; }
+    .tl-item.is-move { background: transparent; }
+    .tl-time { color: #b8860b; } .tl-place { color: #1a6; } .tl-meta { color: #555; }
+    .pane.hidden { display: block !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="sheetHandle"><div class="grip"></div></div>
+    <div class="side-head">
+      <h1>🧥 아메카지·빈티지 데이 <span class="d">2026.08.01 (토)</span></h1>
+      <div class="sub">아메카지 성지 <b>FRANK’S STORE</b> + 빈티지 시계 + 우캉루·안푸루 편집숍 감성 쇼핑.<br>핀 클릭 → 중국어 상호(택시기사용) + <b>고덕 길찾기</b> · 동선은 북동→남서 순.</div>
+      <div class="src">
+        <a href="https://pages.oss.navercorp.com/hye-yeon-lee/REPORT/shanghai_trip_timetable.html" target="_blank" rel="noopener">전체 일정표 ›</a>&nbsp;·&nbsp;
+        <a href="https://frnk-glitch.github.io/Shanghai_TripMeal/" target="_blank" rel="noopener">맛집 지도 ›</a>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-pane="plan">🗓️ 일정 <span class="c" id="planCount"></span></div>
+      <div class="tab" data-pane="poi">📍 장소 담기</div>
+    </div>
+
+    <!-- 일정 -->
+    <div class="pane" id="planPane">
+      <div class="day-summary" id="daySummary"></div>
+      <div id="timeline"></div>
+      <div class="add-row" id="addBlank">＋ 빈 일정 추가</div>
+    </div>
+
+    <!-- 장소 -->
+    <div class="pane hidden" id="poiPane">
+      <div class="poi-tabs">
+        <div class="poi-tab active" data-group="shop">🧥 쇼핑 스팟</div>
+        <div class="poi-tab" data-group="etc">🧋 먹거리·기타</div>
+      </div>
+      <div id="poiList"></div>
+    </div>
+
+    <div class="side-foot">
+      <button id="btnPrint">🖨 인쇄</button>
+      <button id="btnFit">🗺 전체보기</button>
+      <button id="btnReset" class="danger">↺ 초기화</button>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- 편집 모달 -->
+<div id="modalWrap">
+  <div id="modal">
+    <h3 id="modalTitle">일정 편집</h3>
+    <div class="fld">
+      <label>유형</label>
+      <select id="mType"></select>
+    </div>
+    <div class="fld">
+      <label>제목</label>
+      <input id="mTitle" type="text" placeholder="예: 안푸루 편집숍">
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>시작</label><select id="mStart"></select></div>
+      <div class="fld"><label>종료</label><select id="mEnd"></select></div>
+    </div>
+    <div class="fld">
+      <label>장소 (지도 핀 연결)</label>
+      <select id="mPoi"></select>
+    </div>
+    <div class="fld">
+      <label>메모</label>
+      <textarea id="mMeta" placeholder="가벼운 메모"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-del" id="mDel">삭제</button>
+      <button class="btn-cancel" id="mCancel">취소</button>
+      <button class="btn-save" id="mSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * POI 데이터 — 8/1 가고 싶은 곳 (아메카지·빈티지·편집숍 테마)
+ *  gcj = 고덕(GCJ-02) 좌표 · 지도에 바로 찍힘
+ *   - FREGO/DORO : 고덕 공유링크에서 추출한 정확 좌표
+ *   - 나머지     : 주소 기반 추정 좌표 (핀은 대략, 길찾기는 amap 링크가 정확)
+ *  amap = 고덕 길찾기/검색 링크 · by = 배지
+ * ============================================================ */
+const POIS = [
+  // --- 무조건 (아메카지 성지) ---
+  { id:"f1", cat:"must", ic:"🧥", by:"무조건", name:"FRANK’S STORE", cn:"上海市虹口区哈尔滨路229号",
+    gcj:[31.2578,121.4838], note:"상하이 아메카지 성지 · 편집숍",
+    amap:"https://uri.amap.com/search?keyword=FRANK'S%20STORE%20%E5%93%88%E5%B0%94%E6%BB%A8%E8%B7%AF229%E5%8F%B7&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 빈티지 시계 ---
+  { id:"v1", cat:"vintage", ic:"⌚", by:"빈티지", name:"FREGO 프레고", cn:"专业腕表修理工房 · 静安区陕西北路600号-2室",
+    gcj:[31.232659,121.451865], note:"빈티지 시계 · 수리공방 · @fregotime",
+    amap:"https://surl.amap.com/eTEI4ywW0Hx" },
+  { id:"v2", cat:"vintage", ic:"⌚", by:"빈티지", name:"DORO 도로", cn:"多乐中古洋行 · 徐汇区(陕西南路站 10번출구 도보 320m)",
+    gcj:[31.218249,121.457558], note:"중고·빈티지 시계 · @doro_vintagewatch",
+    amap:"https://surl.amap.com/lmMbh7E1b1Mb" },
+
+  // --- 편집숍·플래그십 ---
+  { id:"s1", cat:"select", ic:"🛍️", by:"편집숍", name:"MUJI 무인양품 플래그십", cn:"无印良品 · 淮海中路755号 3楼",
+    gcj:[31.2181,121.4600], note:"플래그십 3층",
+    amap:"https://uri.amap.com/search?keyword=%E6%97%A0%E5%8D%B0%E8%89%AF%E5%93%81%20%E6%B7%AE%E6%B5%B7%E4%B8%AD%E8%B7%AF755&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"s2", cat:"select", ic:"🖤", by:"편집숍", name:"HAUS NOWHERE", cn:"黄浦区淮海中路798~812号",
+    gcj:[31.2185,121.4588], note:"복합 편집숍 · MUJI 도보 1분",
+    amap:"https://uri.amap.com/search?keyword=HAUS%20NOWHERE%20%E6%B7%AE%E6%B5%B7%E4%B8%AD%E8%B7%AF&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"s3", cat:"select", ic:"🧸", by:"편집숍", name:"13DE MARZO", cn:"安福路322号4号楼1楼",
+    gcj:[31.2142,121.4288], note:"베어 브랜드 · 안푸루",
+    amap:"https://uri.amap.com/search?keyword=13DE%20MARZO%20%E5%AE%89%E7%A6%8F%E8%B7%AF322&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"s4", cat:"select", ic:"🌈", by:"편집숍", name:"Wiggle Wiggle 플래그십", cn:"徐汇区安福路308号",
+    gcj:[31.2141,121.4292], note:"안푸루 플래그십 · 13DE MARZO 옆",
+    amap:"https://uri.amap.com/search?keyword=Wiggle%20Wiggle%20%E5%AE%89%E7%A6%8F%E8%B7%AF308&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 우캉루·안푸루 감성거리 ---
+  { id:"w1", cat:"street", ic:"🏛️", by:"스팟", name:"우캉맨션 (武康大楼)", cn:"徐汇区淮海中路1850号",
+    gcj:[31.2103,121.4255], note:"우캉루 랜드마크 · 안푸루 산책 시작점",
+    amap:"https://uri.amap.com/search?keyword=%E6%AD%A6%E5%BA%B7%E5%A4%A7%E6%A5%BC&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 간식·카페 ---
+  { id:"k1", cat:"snack", ic:"🧋", by:"간식", name:"鹤茶野所 (학차야소)", cn:"徐汇区肇嘉浜路1111号 美罗城 1F",
+    gcj:[31.1946,121.4370], note:"밀크티/차 ¥28 · 쉬자후이 美罗城",
+    amap:"https://uri.amap.com/search?keyword=%E9%B9%A4%E8%8C%B6%E9%87%8E%E6%89%80%20%E7%BE%8E%E7%BD%97%E5%9F%8E&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
+  // --- 선택·후순위 (동선 밖) ---
+  { id:"x1", cat:"extra", ic:"👗", by:"후순위", name:"RENATHING", cn:"黄浦区四川中路133号",
+    gcj:[31.2380,121.4868], note:"여성 편집숍 · 외탄 근처",
+    amap:"https://uri.amap.com/search?keyword=RENATHING%20%E5%9B%9B%E5%B7%9D%E4%B8%AD%E8%B7%AF133&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"x2", cat:"extra", ic:"🛒", by:"후순위", name:"大润发 따룬파 (平型关店)", cn:"静安区俞泾港路11号 (西藏北路站 4번출구 440m)",
+    gcj:[31.2725,121.4560], note:"마트 · 귀국 선물/간식 · 징안 북부(동선 밖)",
+    amap:"https://uri.amap.com/search?keyword=%E5%A4%A7%E6%B6%A6%E5%8F%91%20%E5%B9%B3%E5%9E%8B%E5%85%B3%E5%BA%97&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"x3", cat:"extra", ic:"♨️", by:"후순위", name:"霖林雨 (린린위)", cn:"虹莘路3065号 (近漕宝路)",
+    gcj:[31.1590,121.3835], note:"찜질·온천 · 홍췐루 (남서쪽, 동선과 많이 떨어짐)",
+    amap:"https://uri.amap.com/search?keyword=%E9%9C%96%E6%9E%97%E9%9B%A8%20%E8%99%B9%E8%8E%98%E8%B7%AF3065&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+];
+const POI_BY_ID = Object.fromEntries(POIS.map(p => [p.id, p]));
+
+/* POI 카테고리 (group: 쇼핑 스팟 / 먹거리·기타) */
+const CATEGORIES = {
+  must:    { label:"무조건 · 아메카지 성지",     color:"#e5484d", group:"shop" },
+  vintage: { label:"빈티지 시계",               color:"#c9922e", group:"shop" },
+  select:  { label:"편집숍 · 플래그십",          color:"#2f7fed", group:"shop" },
+  street:  { label:"우캉루 · 안푸루 감성거리",    color:"#12b5a5", group:"shop" },
+  snack:   { label:"간식 · 카페",               color:"#e8950c", group:"etc" },
+  extra:   { label:"선택 · 후순위 (동선 밖)",     color:"#8a94a6", group:"etc" },
+};
+
+/* 일정 유형 (타임라인 색) */
+const TYPES = {
+  shop:   { label:"쇼핑",     color:"#2f7fed" },
+  street: { label:"거리·산책", color:"#12b5a5" },
+  meal:   { label:"식사",     color:"#e5484d" },
+  cafe:   { label:"간식·카페", color:"#e8950c" },
+  move:   { label:"이동",     color:"#6b7280" },
+  rest:   { label:"휴식",     color:"#9a5cf0" },
+};
+
+/* 배지 (POI의 by 값 기준) */
+const BADGES = {
+  "무조건": { cls:"b-must", txt:"무조건★" },
+  "빈티지": { cls:"b-vtg",  txt:"빈티지" },
+  "편집숍": { cls:"b-sel",  txt:"편집숍" },
+  "스팟":   { cls:"b-spot", txt:"스팟" },
+  "간식":   { cls:"b-snk",  txt:"간식" },
+  "후순위": { cls:"b-etc",  txt:"후순위" },
+};
+const badgeHtml = by => { const b = BADGES[by]; return b ? `<span class="badge ${b.cls}">${b.txt}</span>` : ""; };
+
+/* ============================================================
+ * 8/1 기본 동선 — 홍커우 → 징안 → 산시남로 → 우캉루/안푸루 → 쉬자후이
+ *  s/e = 시작/종료(소수시간) · poi = 연결 장소 id · 이동 시간 반영
+ * ============================================================ */
+const DEFAULT_PLAN = [
+  { s:10.5,  e:11.0,  type:"meal",   title:"조식 · 브런치",           poi:null, meta:"가볍게 시작" },
+  { s:11.0,  e:11.5,  type:"move",   title:"이동 → 홍커우",           poi:null, meta:"택시 약 20~30분" },
+  { s:11.5,  e:12.75, type:"shop",   title:"⭐ FRANK’S STORE",        poi:"f1", meta:"아메카지 성지 · 천천히 구경" },
+  { s:12.75, e:13.0,  type:"move",   title:"이동 → 징안(난징서로)",    poi:null, meta:"택시 약 15~20분" },
+  { s:13.0,  e:14.1,  type:"meal",   title:"점심",                    poi:null, meta:"난징서로 근처 · 식당 자유" },
+  { s:14.1,  e:14.4,  type:"move",   title:"이동 → 산시북로",         poi:null, meta:"도보 약 10분" },
+  { s:14.4,  e:15.1,  type:"shop",   title:"FREGO 빈티지 시계",       poi:"v1", meta:"수리공방 · @fregotime" },
+  { s:15.1,  e:15.4,  type:"move",   title:"이동 → 산시남로",         poi:null, meta:"택시 약 10분" },
+  { s:15.4,  e:16.0,  type:"shop",   title:"DORO 빈티지 시계",        poi:"v2", meta:"중고 시계 · @doro_vintagewatch" },
+  { s:16.0,  e:16.6,  type:"shop",   title:"MUJI 플래그십",           poi:"s1", meta:"화이하이중로 · 3층" },
+  { s:16.6,  e:17.1,  type:"shop",   title:"HAUS NOWHERE",            poi:"s2", meta:"도보 1분 · 복합 편집숍" },
+  { s:17.1,  e:17.4,  type:"move",   title:"이동 → 우캉루",           poi:null, meta:"택시 약 12분" },
+  { s:17.4,  e:17.85, type:"street", title:"우캉맨션 · 우캉루 산책",   poi:"w1", meta:"랜드마크 포토스팟" },
+  { s:17.85, e:18.7,  type:"shop",   title:"안푸루 편집숍",           poi:"s3", meta:"13DE MARZO · Wiggle Wiggle" },
+  { s:18.7,  e:19.0,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
+  { s:19.0,  e:19.4,  type:"cafe",   title:"간식 · 鹤茶野所",         poi:"k1", meta:"밀크티 ¥28 · 美罗城 1F" },
+  { s:19.5,  e:21.0,  type:"meal",   title:"저녁",                    poi:null, meta:"쉬자후이/우캉루 미식 · 자유" },
+];
+
+const STORAGE_KEY = "shanghai_0801_planner_v2";
+const HOUR_START = 8, HOUR_END = 24;
+
+/* ============================================================
+ * WGS-84 → GCJ-02 (POI가 gcj 직접 지정이면 변환 생략)
+ * ============================================================ */
+const GCJ = (() => {
+  const PI = Math.PI, A = 6378245.0, EE = 0.00669342162296594323;
+  const outOfChina = (lat, lng) => lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+  const tLat = (x,y) => { let r=-100+2*x+3*y+0.2*y*y+0.1*x*y+0.2*Math.sqrt(Math.abs(x)); r+=(20*Math.sin(6*x*PI)+20*Math.sin(2*x*PI))*2/3; r+=(20*Math.sin(y*PI)+40*Math.sin(y/3*PI))*2/3; r+=(160*Math.sin(y/12*PI)+320*Math.sin(y*PI/30))*2/3; return r; };
+  const tLng = (x,y) => { let r=300+x+2*y+0.1*x*x+0.1*x*y+0.1*Math.sqrt(Math.abs(x)); r+=(20*Math.sin(6*x*PI)+20*Math.sin(2*x*PI))*2/3; r+=(20*Math.sin(x*PI)+40*Math.sin(x/3*PI))*2/3; r+=(150*Math.sin(x/12*PI)+300*Math.sin(x/30*PI))*2/3; return r; };
+  function wgs2gcj(lat, lng) {
+    if (outOfChina(lat, lng)) return [lat, lng];
+    let dLat = tLat(lng-105, lat-35), dLng = tLng(lng-105, lat-35);
+    const radLat = lat/180*PI; let magic = Math.sin(radLat); magic = 1-EE*magic*magic;
+    const sq = Math.sqrt(magic);
+    dLat = (dLat*180)/((A*(1-EE))/(magic*sq)*PI);
+    dLng = (dLng*180)/(A/sq*Math.cos(radLat)*PI);
+    return [lat+dLat, lng+dLng];
+  }
+  return { wgs2gcj };
+})();
+POIS.forEach(p => { if (!p.gcj) p.gcj = GCJ.wgs2gcj(p.lat, p.lng); });
+
+/* ============================================================
+ * 지도 (Leaflet + 고덕 타일) — 맛집 지도와 동일
+ * ============================================================ */
+const amapRoad = L.tileLayer(
+  "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+  { subdomains:"1234", maxZoom:18, attribution:"© AMap (高德地图)" });
+const amapSat = L.layerGroup([
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", { subdomains:"1234", maxZoom:18, attribution:"© AMap (高德地图)" }),
+  L.tileLayer("https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}", { subdomains:"1234", maxZoom:18 }),
+]);
+const map = L.map("map", { center:[31.2304, 121.4737], zoom:13, layers:[amapRoad] });
+L.control.layers({ "고덕 일반": amapRoad, "고덕 위성": amapSat }, null, { position:"topright" }).addTo(map);
+L.control.scale({ imperial:false }).addTo(map);
+
+function emojiPin(color, ic, planned, num) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="mk${planned?" planned":" dim"}">
+             <div class="head" style="background:${color}">${ic}</div>
+             <div class="tail" style="border-top-color:${planned?"#c9b06a":color}"></div>
+             ${num ? `<div class="num">${num}</div>` : ""}
+           </div>`,
+    iconSize: [32,41], iconAnchor: [16,41], popupAnchor: [0,-38],
+  });
+}
+
+const poiMarkers = {};
+const markerLayer = L.layerGroup().addTo(map);
+let routeLine = null;
+
+function poiPopupHtml(p) {
+  const links = p.amap ? `<div class="note"><a href="${p.amap}" target="_blank" rel="noopener">고덕 길찾기 ›</a></div>` : "";
+  return `<div class="cn">${p.ic} ${p.name} ${badgeHtml(p.by)}</div>` +
+    `<div class="addr">${p.cn}</div>` +
+    (p.note ? `<div class="note">${p.note}</div>` : "") +
+    links +
+    `<div><span class="pbtn" onclick="addPoiToPlan('${p.id}')">＋ 일정에 담기</span></div>`;
+}
+
+function planOrder() {
+  const order = {};
+  planSorted().filter(x => x.poi).forEach(x => { if (!(x.poi in order)) order[x.poi] = Object.keys(order).length + 1; });
+  return order;
+}
+
+function renderMap() {
+  markerLayer.clearLayers();
+  const order = planOrder();
+  POIS.forEach(p => {
+    const cat = CATEGORIES[p.cat];
+    const num = order[p.id];
+    const m = L.marker(p.gcj, { icon: emojiPin(cat.color, p.ic, !!num, num) });
+    m.bindPopup(poiPopupHtml(p));
+    m.bindTooltip(p.name, { direction:"top", offset:[0,-34] });
+    markerLayer.addLayer(m);
+    poiMarkers[p.id] = m;
+  });
+  // 경로선 (계획된 장소 시간순 연결)
+  const pts = planSorted().filter(x => x.poi && POI_BY_ID[x.poi]).map(x => POI_BY_ID[x.poi].gcj);
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (pts.length >= 2) routeLine = L.polyline(pts, { color:"#c9b06a", weight:3, opacity:.85, dashArray:"6,7" }).addTo(map);
+}
+
+function focusPoi(id) {
+  const p = POI_BY_ID[id]; if (!p) return;
+  if (isMobile()) collapseSheet();
+  map.flyTo(p.gcj, 16);
+  const m = poiMarkers[id]; if (m) m.openPopup();
+}
+
+/* ============================================================ 상태 ============================================================ */
+let state = load();
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) { try { const s = JSON.parse(raw); if (s && s.plan) return s; } catch(e){} }
+  return { plan: DEFAULT_PLAN.map((e,i)=>({ ...e, id:i+1 })), nextId: DEFAULT_PLAN.length+1 };
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderAll(); }
+function planSorted() { return [...state.plan].sort((a,b) => a.s - b.s || a.e - b.e); }
+const fmt = t => String(Math.floor(t)).padStart(2,"0") + ":" + String(Math.round((t-Math.floor(t))*60)).padStart(2,"0");
+const esc = s => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============================================================ 일정 렌더 ============================================================ */
+function renderPlan() {
+  const tl = document.getElementById("timeline");
+  const items = planSorted();
+  document.getElementById("planCount").textContent = items.length ? `(${items.length})` : "";
+  const order = planOrder();
+
+  if (!items.length) { tl.innerHTML = `<div class="tl-empty">일정이 비어 있어요.<br>‘장소 담기’ 또는 ‘빈 일정 추가’로 시작하세요.</div>`; }
+  else {
+    tl.innerHTML = items.map(ev => {
+      const color = (TYPES[ev.type]||{}).color || "#6b7280";
+      const p = ev.poi ? POI_BY_ID[ev.poi] : null;
+      const idx = p ? order[ev.poi] : null;
+      const isMove = ev.type === "move";
+      const links = p ? [
+        p.amap ? `<a href="${p.amap}" target="_blank" rel="noopener" onclick="event.stopPropagation()">고덕 길찾기 ›</a>` : "",
+        `<a href="#" onclick="event.stopPropagation();event.preventDefault();focusPoi('${p.id}')">지도에서 보기 ›</a>`,
+      ].filter(Boolean).join("") : "";
+      return `<div class="tl-item ${isMove?'is-move':''}" style="border-left-color:${color}" onclick="openEditor(${ev.id})">
+        <div class="tl-time">${fmt(ev.s)} – ${fmt(ev.e)}${isMove?"":" · "+((TYPES[ev.type]||{}).label||"")}</div>
+        <div class="tl-title">${idx?`<span class="tl-idx">${idx}</span>`:""}${esc(ev.title)}</div>
+        ${p ? `<div class="tl-place">${p.ic} ${badgeHtml(p.by)} <span class="cn">${esc(p.cn.split(" · ")[0])}</span></div>` : ""}
+        ${ev.meta ? `<div class="tl-meta">${esc(ev.meta)}</div>` : ""}
+        ${links ? `<div class="tl-links">${links}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  const sum = document.getElementById("daySummary");
+  if (items.length) {
+    const stops = items.filter(x=>x.poi).length;
+    sum.innerHTML = `<b>${fmt(items[0].s)} → ${fmt(items[items.length-1].e)}</b> · 방문지 ${stops}곳 · 이동 반영 (지도 경로 연결)`;
+  } else sum.innerHTML = "";
+}
+
+/* ============================================================ 장소 담기 ============================================================ */
+let poiGroup = "shop";
+function renderPoiList() {
+  const el = document.getElementById("poiList");
+  const usedPois = new Set(state.plan.map(x=>x.poi).filter(Boolean));
+  let html = "";
+  for (const [key, cat] of Object.entries(CATEGORIES)) {
+    if (cat.group !== poiGroup) continue;
+    const items = POIS.filter(p => p.cat === key);
+    if (!items.length) continue;
+    html += `<div class="cat-title"><span class="cat-dot" style="background:${cat.color}"></span>${cat.label}</div>`;
+    for (const p of items) {
+      const inPlan = usedPois.has(p.id);
+      html += `<div class="poi ${inPlan?"in-plan":""}">
+        <div class="body" onclick="focusPoi('${p.id}')">
+          ${p.ic} ${esc(p.name)} ${badgeHtml(p.by)}
+          <div class="cn">${esc(p.cn.split(" · ")[0])}</div>
+          ${p.note ? `<div class="meta">${esc(p.note)}</div>` : ""}
+        </div>
+        <button class="add" title="${inPlan?"이미 담김 — 다시 담기":"일정에 담기"}" onclick="addPoiToPlan('${p.id}')">${inPlan?"✓":"＋"}</button>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function addPoiToPlan(id) {
+  const p = POI_BY_ID[id]; if (!p) return;
+  const items = planSorted();
+  let s = items.length ? Math.min(items[items.length-1].e + 0.5, 22) : 11;
+  const type = p.cat === "snack" ? "cafe" : p.cat === "street" ? "street" : "shop";
+  state.plan.push({ id: state.nextId++, s, e: Math.min(s+1, 23.5), type, title: p.name, poi: id, meta: p.note || "" });
+  save();
+  map.closePopup();
+  switchTab("plan");
+}
+
+/* ============================================================ 편집 모달 ============================================================ */
+const timeOpts = () => { let o=""; for (let t=HOUR_START; t<=HOUR_END; t+=0.5) o += `<option value="${t}">${fmt(t)}</option>`; return o; };
+function initModalStatics() {
+  document.getElementById("mType").innerHTML = Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join("");
+  document.getElementById("mStart").innerHTML = timeOpts();
+  document.getElementById("mEnd").innerHTML = timeOpts();
+  const grp = (g,label) => `<optgroup label="${label}">` + POIS.filter(p=>CATEGORIES[p.cat].group===g).map(p=>`<option value="${p.id}">${p.name}</option>`).join("") + `</optgroup>`;
+  document.getElementById("mPoi").innerHTML = `<option value="">— 연결 안 함 —</option>` + grp("shop","🧥 쇼핑 스팟") + grp("etc","🧋 먹거리·기타");
+}
+
+let editingId = null;
+function openEditor(id) {
+  const ev = state.plan.find(x=>x.id===id) || null;
+  editingId = ev ? id : null;
+  document.getElementById("modalTitle").textContent = ev ? "일정 편집" : "새 일정";
+  document.getElementById("mType").value  = ev ? ev.type : "shop";
+  document.getElementById("mTitle").value = ev ? ev.title : "";
+  document.getElementById("mStart").value = ev ? ev.s : 11;
+  document.getElementById("mEnd").value   = ev ? ev.e : 12;
+  document.getElementById("mPoi").value   = ev ? (ev.poi||"") : "";
+  document.getElementById("mMeta").value  = ev ? (ev.meta||"") : "";
+  document.getElementById("mDel").style.display = ev ? "block" : "none";
+  document.getElementById("modalWrap").classList.add("show");
+}
+function closeEditor() { document.getElementById("modalWrap").classList.remove("show"); editingId = null; }
+function saveEditor() {
+  let s = parseFloat(document.getElementById("mStart").value);
+  let e = parseFloat(document.getElementById("mEnd").value);
+  if (e <= s) e = Math.min(s + 0.5, HOUR_END);
+  const poi = document.getElementById("mPoi").value || null;
+  let title = document.getElementById("mTitle").value.trim();
+  if (!title) title = poi ? POI_BY_ID[poi].name : "새 일정";
+  const data = { s, e, type: document.getElementById("mType").value, title, poi, meta: document.getElementById("mMeta").value.trim() };
+  if (editingId != null) Object.assign(state.plan.find(x=>x.id===editingId), data);
+  else state.plan.push({ id: state.nextId++, ...data });
+  closeEditor(); save();
+}
+function delEditor() { if (editingId != null) state.plan = state.plan.filter(x=>x.id!==editingId); closeEditor(); save(); }
+
+/* ============================================================ 탭 / 시트 / 버튼 ============================================================ */
+function switchTab(which) {
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.pane===which));
+  document.getElementById("planPane").classList.toggle("hidden", which!=="plan");
+  document.getElementById("poiPane").classList.toggle("hidden", which!=="poi");
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchTab(t.dataset.pane));
+document.querySelectorAll(".poi-tab").forEach(t => t.onclick = () => {
+  poiGroup = t.dataset.group;
+  document.querySelectorAll(".poi-tab").forEach(x=>x.classList.toggle("active", x===t));
+  renderPoiList();
+});
+document.getElementById("addBlank").onclick = () => openEditor(null);
+document.getElementById("btnPrint").onclick = () => window.print();
+document.getElementById("btnFit").onclick = () => {
+  const pts = planSorted().filter(x=>x.poi&&POI_BY_ID[x.poi]).map(x=>POI_BY_ID[x.poi].gcj);
+  if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2));
+  else map.fitBounds(L.featureGroup(Object.values(poiMarkers)).getBounds().pad(0.12));
+};
+document.getElementById("btnReset").onclick = () => {
+  if (!confirm("일정을 8/1 기본 동선으로 되돌릴까요? (직접 수정한 내용은 사라집니다)")) return;
+  localStorage.removeItem(STORAGE_KEY); state = load(); save();
+};
+document.getElementById("mSave").onclick = saveEditor;
+document.getElementById("mCancel").onclick = closeEditor;
+document.getElementById("mDel").onclick = delEditor;
+document.getElementById("modalWrap").onclick = (e) => { if (e.target.id === "modalWrap") closeEditor(); };
+
+const sidebarEl = document.getElementById("sidebar");
+const isMobile = () => window.matchMedia("(max-width: 760px)").matches;
+document.getElementById("sheetHandle").onclick = () => sidebarEl.classList.toggle("expanded");
+function collapseSheet() { if (isMobile()) sidebarEl.classList.remove("expanded"); }
+map.on("click", collapseSheet);
+
+/* ============================================================ 렌더 총괄 ============================================================ */
+function renderAll() { renderPlan(); renderPoiList(); renderMap(); }
+initModalStatics();
+renderAll();
+(function(){
+  const pts = planSorted().filter(x=>x.poi&&POI_BY_ID[x.poi]).map(x=>POI_BY_ID[x.poi].gcj);
+  if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.18));
+})();
+</script>
+</body>
+</html>
