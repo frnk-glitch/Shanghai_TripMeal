@@ -229,9 +229,25 @@
     .tl-time { color: #b8860b; } .tl-place { color: #1a6; } .tl-meta { color: #555; }
     .pane.hidden { display: block !important; }
   }
+
+  /* ===== 두 페이지 전환 스위처 (맛집 지도 ↔ 8/1 자유일정) ===== */
+  .app-switch {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1500;
+    display: flex; gap: 2px; background: #1e2430; border: 1px solid #353d4d;
+    border-radius: 999px; padding: 3px; box-shadow: 0 3px 12px rgba(0,0,0,.4);
+    font-size: 12.5px;
+  }
+  .app-switch .seg { padding: 6px 13px; border-radius: 999px; color: #9aa3b5; text-decoration: none; white-space: nowrap; font-weight: 600; cursor: pointer; }
+  .app-switch .seg.active { background: #c9b06a; color: #1e2430; }
+  .app-switch .seg:not(.active):hover { color: #e8eaf0; background: #2b3344; }
+  @media print { .app-switch { display: none !important; } }
 </style>
 </head>
 <body>
+<div class="app-switch">
+  <a class="seg" href="./">🍜 맛집 지도</a>
+  <span class="seg active">🗓️ 8/1 자유일정</span>
+</div>
 <div id="app">
   <div id="sidebar">
     <div id="sheetHandle"><div class="grip"></div></div>
@@ -239,8 +255,7 @@
       <h1>🧥 8/1 상하이 자유일정 <span class="d">2026.08.01 (토)</span></h1>
       <div class="sub">가고 싶은 곳을 테마별 <b>3안(A/B/C)</b>으로 구성 — 위에서 안을 고르면 동선·지도 경로가 바뀝니다.<br>핀 클릭 → 중국어 상호(택시기사용) + <b>고덕 길찾기</b></div>
       <div class="src">
-        <a href="https://pages.oss.navercorp.com/hye-yeon-lee/REPORT/shanghai_trip_timetable.html" target="_blank" rel="noopener">전체 일정표 ›</a>&nbsp;·&nbsp;
-        <a href="https://frnk-glitch.github.io/Shanghai_TripMeal/" target="_blank" rel="noopener">맛집 지도 ›</a>
+        <a href="https://pages.oss.navercorp.com/hye-yeon-lee/REPORT/shanghai_trip_timetable.html" target="_blank" rel="noopener">전체 일정표 ↗</a>
       </div>
     </div>
 
