@@ -126,6 +126,7 @@
   .poi.in-plan .add { background: #12b5a5; color: #fff; border-color: #12b5a5; }
   .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; margin-left: 3px; vertical-align: middle; white-space: nowrap; }
   .badge.b-must { background: #4a2230; color: #ff9bb0; }
+  .badge.b-meal { background: #402028; color: #ff9b9b; }
   .badge.b-vtg  { background: #3a3320; color: #e6c46a; }
   .badge.b-sel  { background: #22303f; color: #8fc4ff; }
   .badge.b-spot { background: #1e3a36; color: #7fd7c4; }
@@ -261,7 +262,7 @@
     <div class="pane hidden" id="poiPane">
       <div class="poi-tabs">
         <div class="poi-tab active" data-group="shop">🧥 쇼핑 스팟</div>
-        <div class="poi-tab" data-group="etc">🧋 먹거리·기타</div>
+        <div class="poi-tab" data-group="etc">🍚 밥집·먹거리</div>
       </div>
       <div id="poiList"></div>
     </div>
@@ -348,6 +349,20 @@ const POIS = [
     gcj:[31.2103,121.4255], note:"우캉루 랜드마크 · 안푸루 산책 시작점",
     amap:"https://uri.amap.com/search?keyword=%E6%AD%A6%E5%BA%B7%E5%A4%A7%E6%A5%BC&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
 
+  // --- 밥집·식당 ---
+  { id:"m1", cat:"meal", ic:"🥢", by:"밥집", name:"老吉士 (Jesse Restaurant · 天平路店)", cn:"徐汇区天平路41号 (近淮海中路)",
+    gcj:[31.2128,121.4378], note:"상하이 가정식 클래식 · 우캉루/안푸루 근처 · 예약 권장",
+    amap:"https://uri.amap.com/search?keyword=%E8%80%81%E5%90%89%E5%A3%AB%E9%A5%AD%E9%A6%86%20%E5%A4%A9%E5%B9%B3%E8%B7%AF41%E5%8F%B7&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"m2", cat:"meal", ic:"🦞", by:"밥집", name:"红盔甲 홍쿠이지아 (인민광장점)", cn:"黄浦区金陵东路500号 亚龙国际广场 2楼",
+    gcj:[31.2310,121.4820], note:"마라롱샤 · 天钥桥路(쉬자후이) 지점도 있음",
+    amap:"https://uri.amap.com/search?keyword=%E7%BA%A2%E7%9B%94%E7%94%B2%20%E9%87%91%E9%99%B5%E4%B8%9C%E8%B7%AF500%E5%8F%B7&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"m3", cat:"meal", ic:"🍢", by:"밥집", name:"很久以前 헌저우이치엔 (난징동루점)", cn:"黄浦区南京东路830号 第三百货 6楼",
+    gcj:[31.2372,121.4800], note:"양꼬치(羊肉串) 체인 · 야식 OK",
+    amap:"https://uri.amap.com/search?keyword=%E5%BE%88%E4%B9%85%E4%BB%A5%E5%89%8D%E7%BE%8A%E8%82%89%E4%B8%B2%20%E5%8D%97%E4%BA%AC%E4%B8%9C%E8%B7%AF830%E5%8F%B7&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+  { id:"m4", cat:"meal", ic:"🥞", by:"밥집", search:true, name:"煎饼 지엔빙 (검색형)", cn:"위치 다양 — 가게명 + 煎饼 으로 검색",
+    note:"길거리 지엔빙 · 고정 위치 없음 · 근처에서 검색",
+    amap:"https://uri.amap.com/search?keyword=%E7%85%8E%E9%A5%BC&city=%E4%B8%8A%E6%B5%B7&coordinate=gaode&callnative=1" },
+
   // --- 간식·카페 ---
   { id:"k1", cat:"snack", ic:"🧋", by:"간식", name:"鹤茶野所 (학차야소)", cn:"徐汇区肇嘉浜路1111号 美罗城 1F",
     gcj:[31.1946,121.4370], note:"밀크티/차 ¥28 · 쉬자후이 美罗城",
@@ -372,6 +387,7 @@ const CATEGORIES = {
   vintage: { label:"빈티지 시계",               color:"#c9922e", group:"shop" },
   select:  { label:"편집숍 · 플래그십",          color:"#2f7fed", group:"shop" },
   street:  { label:"우캉루 · 안푸루 감성거리",    color:"#12b5a5", group:"shop" },
+  meal:    { label:"밥집 · 식당",               color:"#e5484d", group:"etc" },
   snack:   { label:"간식 · 카페",               color:"#e8950c", group:"etc" },
   extra:   { label:"선택 · 후순위 (동선 밖)",     color:"#8a94a6", group:"etc" },
 };
@@ -389,6 +405,7 @@ const TYPES = {
 /* 배지 (POI의 by 값 기준) */
 const BADGES = {
   "무조건": { cls:"b-must", txt:"무조건★" },
+  "밥집":   { cls:"b-meal", txt:"밥집" },
   "빈티지": { cls:"b-vtg",  txt:"빈티지" },
   "편집숍": { cls:"b-sel",  txt:"편집숍" },
   "스팟":   { cls:"b-spot", txt:"스팟" },
@@ -422,10 +439,11 @@ const SEED_A = [
   { s:16.6,  e:17.1,  type:"shop",   title:"HAUS NOWHERE",            poi:"s2", meta:"도보 1분 · 복합 편집숍" },
   { s:17.1,  e:17.4,  type:"move",   title:"이동 → 우캉루",           poi:null, meta:"택시 약 12분" },
   { s:17.4,  e:17.85, type:"street", title:"우캉맨션 · 우캉루 산책",   poi:"w1", meta:"랜드마크 포토스팟" },
-  { s:17.85, e:18.7,  type:"shop",   title:"안푸루 편집숍",           poi:"s3", meta:"13DE MARZO · Wiggle Wiggle" },
-  { s:18.7,  e:19.0,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
-  { s:19.0,  e:19.4,  type:"cafe",   title:"간식 · 鹤茶野所",         poi:"k1", meta:"밀크티 ¥28 · 美罗城 1F" },
-  { s:19.5,  e:21.0,  type:"meal",   title:"저녁",                    poi:null, meta:"쉬자후이/우캉루 미식 · 자유" },
+  { s:17.85, e:18.6,  type:"shop",   title:"안푸루 편집숍",           poi:"s3", meta:"13DE MARZO · Wiggle Wiggle" },
+  { s:18.6,  e:18.8,  type:"move",   title:"이동 → 천핑루(Jesse)",     poi:null, meta:"도보/택시 약 10분" },
+  { s:18.8,  e:20.3,  type:"meal",   title:"저녁 · 老吉士(Jesse)",     poi:"m1", meta:"천핑루 · 상하이 가정식 (예약 권장)" },
+  { s:20.3,  e:20.6,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
+  { s:20.6,  e:21.1,  type:"cafe",   title:"밀크티 · 鹤茶野所",       poi:"k1", meta:"디저트 음료 ¥28 · 美罗城" },
 ];
 
 // B · 우캉루·안푸루 감성 하프데이 (늦게 시작 · 여유)
@@ -439,9 +457,10 @@ const SEED_B = [
   { s:17.5,  e:17.8,  type:"move",   title:"이동 → 산시남로",         poi:null, meta:"택시 약 12분" },
   { s:17.8,  e:18.3,  type:"shop",   title:"MUJI 플래그십",           poi:"s1", meta:"가볍게 둘러보기" },
   { s:18.3,  e:18.8,  type:"shop",   title:"HAUS NOWHERE",            poi:"s2", meta:"도보 1분" },
-  { s:18.8,  e:19.1,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
-  { s:19.1,  e:19.5,  type:"cafe",   title:"간식 · 鹤茶野所",         poi:"k1", meta:"밀크티 ¥28" },
-  { s:19.5,  e:21.0,  type:"meal",   title:"저녁",                    poi:null, meta:"쉬자후이 미식 · 자유" },
+  { s:18.8,  e:19.1,  type:"move",   title:"이동 → 천핑루(Jesse)",     poi:null, meta:"택시 약 12분" },
+  { s:19.1,  e:20.6,  type:"meal",   title:"저녁 · 老吉士(Jesse)",     poi:"m1", meta:"천핑루 · 상하이 가정식 (예약 권장)" },
+  { s:20.6,  e:20.9,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
+  { s:20.9,  e:21.3,  type:"cafe",   title:"밀크티 · 鹤茶野所",       poi:"k1", meta:"디저트 음료 ¥28" },
 ];
 
 // C · 실속·휴식 마무리 (찜질·온천 + 가벼운 쇼핑 + 마트 선물)
@@ -451,14 +470,15 @@ const SEED_C = [
   { s:12.5,  e:15.5,  type:"rest",   title:"霖林雨 찜질·온천",        poi:"x3", meta:"재충전 2~3시간" },
   { s:15.5,  e:16.3,  type:"move",   title:"이동 → 시내(우캉루)",      poi:null, meta:"택시 약 30분" },
   { s:16.3,  e:17.2,  type:"street", title:"우캉루·안푸루 가볍게",     poi:"w1", meta:"산책 + 편집숍 구경" },
-  { s:17.2,  e:17.6,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
-  { s:17.6,  e:18.0,  type:"cafe",   title:"간식 · 鹤茶野所",         poi:"k1", meta:"밀크티 ¥28" },
-  { s:18.0,  e:19.3,  type:"meal",   title:"저녁",                    poi:null, meta:"쉬자후이 미식" },
-  { s:19.3,  e:20.0,  type:"move",   title:"이동 → 따룬파 마트",       poi:null, meta:"북쪽 · 호텔 방향이면 겸사겸사" },
-  { s:20.0,  e:21.0,  type:"shop",   title:"大润发 마트 · 귀국 선물",  poi:"x2", meta:"간식/선물 쇼핑" },
+  { s:17.2,  e:17.5,  type:"move",   title:"이동 → 천핑루(Jesse)",     poi:null, meta:"택시 약 8분" },
+  { s:17.5,  e:19.0,  type:"meal",   title:"저녁 · 老吉士(Jesse)",     poi:"m1", meta:"천핑루 · 상하이 가정식 (예약 권장)" },
+  { s:19.0,  e:19.3,  type:"move",   title:"이동 → 쉬자후이",         poi:null, meta:"택시 약 10분" },
+  { s:19.3,  e:19.7,  type:"cafe",   title:"밀크티 · 鹤茶野所",       poi:"k1", meta:"디저트 음료 ¥28" },
+  { s:19.7,  e:20.3,  type:"move",   title:"이동 → 따룬파 마트",       poi:null, meta:"북쪽 · 호텔 방향이면 겸사겸사" },
+  { s:20.3,  e:21.3,  type:"shop",   title:"大润发 마트 · 귀국 선물",  poi:"x2", meta:"간식/선물 쇼핑" },
 ];
 
-const STORAGE_KEY = "shanghai_0801_planner_v3";
+const STORAGE_KEY = "shanghai_0801_planner_v4";
 const HOUR_START = 8, HOUR_END = 24;
 
 /* ============================================================
@@ -480,7 +500,7 @@ const GCJ = (() => {
   }
   return { wgs2gcj };
 })();
-POIS.forEach(p => { if (!p.gcj) p.gcj = GCJ.wgs2gcj(p.lat, p.lng); });
+POIS.forEach(p => { if (!p.gcj && !p.search) p.gcj = GCJ.wgs2gcj(p.lat, p.lng); });
 
 /* ============================================================
  * 지도 (Leaflet + 고덕 타일) — 맛집 지도와 동일
@@ -523,7 +543,8 @@ function poiPopupHtml(p) {
 
 function planOrder() {
   const order = {};
-  planSorted().filter(x => x.poi).forEach(x => { if (!(x.poi in order)) order[x.poi] = Object.keys(order).length + 1; });
+  planSorted().filter(x => x.poi && POI_BY_ID[x.poi] && POI_BY_ID[x.poi].gcj)
+    .forEach(x => { if (!(x.poi in order)) order[x.poi] = Object.keys(order).length + 1; });
   return order;
 }
 
@@ -531,6 +552,7 @@ function renderMap() {
   markerLayer.clearLayers();
   const order = planOrder();
   POIS.forEach(p => {
+    if (!p.gcj) return;                 // 검색형(좌표 없음)은 핀 없음
     const cat = CATEGORIES[p.cat];
     const num = order[p.id];
     const m = L.marker(p.gcj, { icon: emojiPin(cat.color, p.ic, !!num, num) });
@@ -539,14 +561,15 @@ function renderMap() {
     markerLayer.addLayer(m);
     poiMarkers[p.id] = m;
   });
-  // 경로선 (계획된 장소 시간순 연결)
-  const pts = planSorted().filter(x => x.poi && POI_BY_ID[x.poi]).map(x => POI_BY_ID[x.poi].gcj);
+  // 경로선 (계획된 장소 시간순 연결 · 좌표 있는 것만)
+  const pts = planSorted().filter(x => x.poi && POI_BY_ID[x.poi] && POI_BY_ID[x.poi].gcj).map(x => POI_BY_ID[x.poi].gcj);
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   if (pts.length >= 2) routeLine = L.polyline(pts, { color:"#c9b06a", weight:3, opacity:.85, dashArray:"6,7" }).addTo(map);
 }
 
 function focusPoi(id) {
   const p = POI_BY_ID[id]; if (!p) return;
+  if (!p.gcj) { if (p.amap) window.open(p.amap, "_blank", "noopener"); return; } // 검색형
   if (isMobile()) collapseSheet();
   map.flyTo(p.gcj, 16);
   const m = poiMarkers[id]; if (m) m.openPopup();
@@ -625,13 +648,16 @@ function renderPoiList() {
     html += `<div class="cat-title"><span class="cat-dot" style="background:${cat.color}"></span>${cat.label}</div>`;
     for (const p of items) {
       const inPlan = usedPois.has(p.id);
+      const btn = p.search
+        ? `<button class="add" title="고덕에서 검색" onclick="window.open('${p.amap}','_blank','noopener')">🔎</button>`
+        : `<button class="add" title="${inPlan?"이미 담김 — 다시 담기":"일정에 담기"}" onclick="addPoiToPlan('${p.id}')">${inPlan?"✓":"＋"}</button>`;
       html += `<div class="poi ${inPlan?"in-plan":""}">
         <div class="body" onclick="focusPoi('${p.id}')">
           ${p.ic} ${esc(p.name)} ${badgeHtml(p.by)}
           <div class="cn">${esc(p.cn.split(" · ")[0])}</div>
           ${p.note ? `<div class="meta">${esc(p.note)}</div>` : ""}
         </div>
-        <button class="add" title="${inPlan?"이미 담김 — 다시 담기":"일정에 담기"}" onclick="addPoiToPlan('${p.id}')">${inPlan?"✓":"＋"}</button>
+        ${btn}
       </div>`;
     }
   }
